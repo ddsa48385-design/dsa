@@ -76,6 +76,7 @@ textarea{resize:none;height:54px;margin-top:6px}
 </div>
 
 <div class="stage"><button id="go">🎤</button><div id="goT">แตะเพื่อเปิดระบบ</div><div id="st"></div></div>
+<div class="card" style="display:flex;gap:8px"><input id="txt" placeholder="หรือพิมพ์ประโยคที่ได้ยินเพื่อแปล (ไม่ใช้ไมค์)" style="flex:1;min-width:0;padding:11px 12px;border-radius:14px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px"><button id="send" style="border:0;border-radius:14px;padding:0 18px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--p1),var(--p2))">แปล</button></div>
 <div id="log"><div class="empty" id="empty">ยังไม่มีบทสนทนา<br>กดปุ่มไมค์เพื่อเริ่มฟัง</div></div>
 </main>
 <script>
@@ -84,7 +85,7 @@ const SC={th:/[\u0E00-\u0E7F]/,ja:/[\u3040-\u30FF]/,zh:/[\u4E00-\u9FFF]/,ko:/[\u
 const $=id=>document.getElementById(id);
 const nm=c=>(L.find(x=>x[0]==c)||[c,c])[1];
 for(const s of [$("from"),$("to")])for(const [c,n] of L)s.add(new Option(n,c));
-$("from").value="en-US";$("to").value="th-TH";
+$("from").value="en-US";$("to").value="th-TH";$("prov").value="gemini";
 try{const sv=JSON.parse(localStorage.getItem("tr")||"{}");if(sv.f)$("from").value=sv.f;if(sv.t)$("to").value=sv.t;if(sv.i)$("info").value=sv.i;if(sv.k)$("key").value=sv.k;if(sv.p)$("prov").value=sv.p;if(sv.m)$("model").value=sv.m}catch(e){}
 function save(){try{localStorage.setItem("tr",JSON.stringify({f:$("from").value,t:$("to").value,i:$("info").value,k:$("key").value.trim(),p:$("prov").value,m:$("model").value.trim()}))}catch(e){}}
 ["from","to"].forEach(i=>$(i).addEventListener("change",()=>{save();if(active){stop();setTimeout(start,300)}}));
@@ -126,6 +127,10 @@ function ui(){$("go").className=active?"on":"";$("go").textContent=active?"■":
 $("go").onclick=async()=>{
   active=!active;ui();
   if(active){
+    if(!SR){active=false;ui();st("เบราว์เซอร์นี้ไม่รองรับการฟังเสียง ใช้ Chrome (Android) หรือ Safari (iOS) หรือพิมพ์ข้อความแทน",1);return}
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){active=false;ui();st("เปิดไมค์ไม่ได้ ต้องเปิดผ่านลิงก์ https:// ใน Chrome หรือ Safari (ไม่ใช่เปิดไฟล์ตรง/ในแอปอื่น)",1);return}
+    try{const ms=await navigator.mediaDevices.getUserMedia({audio:true});ms.getTracks().forEach(t=>t.stop())}
+    catch(e){active=false;ui();const M={NotAllowedError:"ไมค์ถูกบล็อก: แตะไอคอนกุญแจข้างช่องที่อยู่เว็บ อนุญาตไมโครโฟน แล้วรีเฟรชหน้า",NotFoundError:"ไม่พบไมโครโฟนในเครื่อง",NotReadableError:"ไมค์ถูกแอปอื่นใช้อยู่ ปิดแอปนั้นก่อน",SecurityError:"เปิดไมค์ไม่ได้ ต้องเปิดผ่านลิงก์ https://"};st(M[e.name]||("เปิดไมค์ไม่ได้: "+e.name),1);return}
     start();
     if(!sample){st("กำลังเชื่อมต่อระบบแปล…");await sampleP}
     if(!sample)st("เชื่อมต่อระบบแปลไม่ได้ หน้านี้ต้องเปิดในแอป/เว็บ claude.ai ที่ล็อกอินอยู่ (ไม่ใช่เปิดลิงก์ในเบราว์เซอร์ทั่วไป)",1);
@@ -133,11 +138,11 @@ $("go").onclick=async()=>{
   }else{stop();speechSynthesis.cancel();speaking=false}
 };
 
-function handle(text){
+function handle(text,typed){
   $("empty")&&$("empty").remove();
   const my=$("to").value.slice(0,2);
   const d=document.createElement("div");d.className="msg";
-  if(SC[my]&&SC[my].test(text)&&my!=$("from").value.slice(0,2)){
+  if(!typed&&SC[my]&&SC[my].test(text)&&my!=$("from").value.slice(0,2)){
     d.innerHTML='<div class="mine"></div>';d.firstChild.textContent="🙋 เสียงของฉัน (ไม่แปล): "+text;$("log").prepend(d);return}
   d.innerHTML='<div class="b1"></div><div class="b2"><span class="dots"><span>●</span><span>●</span><span>●</span></span></div>';
   d.querySelector(".b1").textContent=text;$("log").prepend(d);
@@ -172,6 +177,8 @@ Sentence: ${text}`;
   }
 }
 function say(t,lang){return new Promise(res=>{try{const u=new SpeechSynthesisUtterance(t);u.lang=lang;u.onend=u.onerror=res;speechSynthesis.speak(u);setTimeout(res,15000)}catch(e){res()}})}
+function sendT(){const t=$("txt").value.trim();if(t){$("txt").value="";handle(t,true)}}
+$("send").onclick=sendT;$("txt").addEventListener("keydown",e=>{if(e.key=="Enter")sendT()});
 </script>
 </body>
 </html>
