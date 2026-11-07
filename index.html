@@ -67,7 +67,7 @@ textarea{resize:none;height:54px;margin-top:6px}
   <select id="prov"><option value="claude">Claude (Anthropic)</option><option value="openai">ChatGPT (OpenAI)</option><option value="gemini">Gemini (Google)</option></select>
   <label style="margin-top:10px">🔑 API key (เก็บไว้ในเครื่องของคุณเท่านั้น)</label>
   <input id="key" type="password" placeholder="sk-ant-..." autocomplete="off" style="width:100%;padding:11px 12px;border-radius:14px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px">
-  <input id="model" type="text" autocomplete="off" style="width:100%;padding:11px 12px;border-radius:14px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px;margin-top:6px" placeholder="ชื่อรุ่นโมเดล">
+  <input id="model" name="model-id" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:11px 12px;border-radius:14px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:16px;margin-top:6px" placeholder="ชื่อรุ่นโมเดล">
 </div>
 <div class="card">
   <div class="sw"><span>💬 ช่วยตอบกลับเมื่อถูกถาม</span><input type="checkbox" id="reply" checked></div>
@@ -86,7 +86,7 @@ const $=id=>document.getElementById(id);
 const nm=c=>(L.find(x=>x[0]==c)||[c,c])[1];
 for(const s of [$("from"),$("to")])for(const [c,n] of L)s.add(new Option(n,c));
 $("from").value="en-US";$("to").value="th-TH";$("prov").value="gemini";
-try{const sv=JSON.parse(localStorage.getItem("tr")||"{}");if(sv.f)$("from").value=sv.f;if(sv.t)$("to").value=sv.t;if(sv.i)$("info").value=sv.i;if(sv.k)$("key").value=sv.k;if(sv.p)$("prov").value=sv.p;if(sv.m)$("model").value=sv.m}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem("tr")||"{}");if(sv.m&&!/^[a-z]/i.test(sv.m))sv.m="";if(sv.f)$("from").value=sv.f;if(sv.t)$("to").value=sv.t;if(sv.i)$("info").value=sv.i;if(sv.k)$("key").value=sv.k;if(sv.p)$("prov").value=sv.p;if(sv.m)$("model").value=sv.m}catch(e){}
 function save(){try{localStorage.setItem("tr",JSON.stringify({f:$("from").value,t:$("to").value,i:$("info").value,k:$("key").value.trim(),p:$("prov").value,m:$("model").value.trim()}))}catch(e){}}
 ["from","to"].forEach(i=>$(i).addEventListener("change",()=>{save();if(active){stop();setTimeout(start,300)}}));
 $("info").addEventListener("input",save);$("key").addEventListener("input",save);$("model").addEventListener("input",save);$("prov").addEventListener("change",()=>{$("model").value="";pm();save()});pm();
@@ -100,7 +100,7 @@ function pm(){$("model").placeholder="รุ่นโมเดล (ว่าง�
 sample=async(p)=>{
   const K=$("key").value.trim();
   if(!K)throw {message:"ยังไม่ได้ใส่ API key (ช่องด้านบน)"};
-  const pv=$("prov").value,M=$("model").value.trim()||DEF[pv];let url,opt,get;
+  const pv=$("prov").value,M=/^[a-z][\w.\-]{3,}$/i.test($("model").value.trim())?$("model").value.trim():DEF[pv];let url,opt,get;
   if(pv=="claude"){url="https://api.anthropic.com/v1/messages";opt={headers:{"x-api-key":K,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:{model:M,max_tokens:400,messages:[{role:"user",content:p}]}};get=d=>(d.content||[]).map(c=>c.text||"").join("")}
   else if(pv=="openai"){url="https://api.openai.com/v1/chat/completions";opt={headers:{"authorization":"Bearer "+K},body:{model:M,messages:[{role:"user",content:p}]}};get=d=>d.choices[0].message.content}
   else{url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(M)+":generateContent?key="+encodeURIComponent(K);opt={headers:{},body:{contents:[{parts:[{text:p}]}]}};get=d=>d.candidates[0].content.parts.map(x=>x.text||"").join("")}
